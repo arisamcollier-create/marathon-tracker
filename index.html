@@ -38,6 +38,12 @@
   .card h2{margin:0 0 12px;font-size:1.05rem;display:flex;align-items:center;gap:8px;}
   .card h2 .tag{font-size:.65rem;font-weight:600;background:var(--card2);color:var(--muted);
     padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+  .card h2.collapsible{cursor:pointer;user-select:none;justify-content:space-between;}
+  .card h2.collapsible .h2left{display:flex;align-items:center;gap:8px;}
+  .chevron{font-size:.8rem;color:var(--muted);transition:transform .2s ease;margin-left:auto;}
+  .chevron.collapsed{transform:rotate(-90deg);}
+  .card-body{overflow:hidden;max-height:2000px;transition:max-height .25s ease, opacity .2s ease;opacity:1;}
+  .card-body.collapsed{max-height:0;opacity:0;}
   label{display:block;font-size:.78rem;color:var(--muted);margin:10px 0 4px;}
   select, input[type=number], input[type=date], input[type=text]{
     width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
@@ -102,6 +108,14 @@
   .phase-block .pname{font-weight:700; font-size:.9rem;}
   .phase-block .pweeks{font-size:.72rem; color:var(--muted);}
   .phase-block .pdesc{font-size:.78rem; color:var(--muted); margin-top:2px;}
+  .guide-intro{font-size:.85rem; color:var(--text); line-height:1.6; margin-bottom:16px;}
+  .guide-phase{border-left:3px solid var(--border); padding:10px 0 10px 14px; margin-bottom:12px;}
+  .guide-phase .gname{font-weight:700; font-size:.92rem; margin-bottom:2px;}
+  .guide-phase .gweeks{font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
+  .guide-phase .gwhy{font-size:.82rem; color:var(--muted); line-height:1.55;}
+  .guide-tt{background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-top:16px;}
+  .guide-tt .gtitle{font-weight:700; font-size:.9rem; margin-bottom:6px; display:flex; align-items:center; gap:6px;}
+  .guide-tt ul{margin:6px 0 0; padding-left:18px; font-size:.82rem; color:var(--muted); line-height:1.6;}
   .footer-note{color:var(--muted); font-size:.72rem; margin-top:28px; line-height:1.5; text-align:center;}
   .log-form{display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:8px; align-items:end;}
   @media (max-width:700px){.log-form{grid-template-columns:1fr 1fr;}}
@@ -118,7 +132,11 @@
 
   <div class="grid grid-2">
     <div class="card">
-      <h2>⚙️ Your Setup <span class="tag">edit anytime</span></h2>
+      <h2 class="collapsible" onclick="toggleCard('setup')">
+        <span class="h2left">⚙️ Your Setup <span class="tag">edit anytime</span></span>
+        <span class="chevron" id="setupChevron">▼</span>
+      </h2>
+      <div class="card-body" id="setupBody">
       <div class="row">
         <div>
           <label>Sex (for calorie calc)</label>
@@ -173,10 +191,15 @@
         </div>
       </div>
       <button class="btn" onclick="saveSettings()">Save & Recalculate</button>
+      </div>
     </div>
 
     <div class="card">
-      <h2>💪 Current Strength <span class="tag">working weights, 5x5</span></h2>
+      <h2 class="collapsible" onclick="toggleCard('strength')">
+        <span class="h2left">💪 Current Strength <span class="tag">working weights, 5x5</span></span>
+        <span class="chevron" id="strengthChevron">▼</span>
+      </h2>
+      <div class="card-body" id="strengthBody">
       <div class="row">
         <div>
           <label>Back Squat (kg)</label>
@@ -209,6 +232,7 @@
         All sessions below are built only from this equipment.
       </div>
       <button class="btn secondary" onclick="saveSettings()">Save</button>
+      </div>
     </div>
   </div>
 
@@ -275,6 +299,11 @@
     </div>
   </div>
 
+  <div class="card" style="margin-top:16px;">
+    <h2>📖 Why This Program &amp; Weekly Guide</h2>
+    <div id="programGuide"></div>
+  </div>
+
   <p class="footer-note">
     Built for a home gym: squat rack, bench, pull-up bar, Olympic bar + 160kg plates, and a single low/high cable stack.
     Paces and calories are estimates that sharpen as your race day approaches and as you update your numbers — not medical advice.
@@ -293,6 +322,22 @@ const DEFAULTS = {
   squat:120, bench:100, deadlift:140, ohp:60,
   calgoal:'recomp'
 };
+
+// Shared phase metadata — used by both the roadmap widget and the Program Guide at the bottom.
+const PHASES = [
+  { name:'Foundation', weeks:'Weeks 1-13', desc:'Build lifting strength further + aerobic base. 3 lifts, 4 runs/week.',
+    why:'Marathon training is a full year of accumulating stress, so it starts by building the two engines you\'ll rely on later: real lifting strength (while you still have the freshness to push 5x5 numbers up) and an aerobic base of easy running. Nothing here is marathon-specific yet — it\'s the foundation everything else sits on.' },
+  { name:'Base Building', weeks:'Weeks 14-25', desc:'Mileage climbs 30-50km/wk. Lifting drops to maintenance (3x/wk).',
+    why:'Running volume becomes the priority, so lifting shifts from "get stronger" to "don\'t lose what you built" — lower sets/reps, same movements. Tempo runs are introduced to raise your lactate threshold. This is where your 10K time should start dropping noticeably.' },
+  { name:'Marathon-Specific Build', weeks:'Weeks 26-37', desc:'Long runs 20-28km with MP segments. Lifting 2x/wk, brief.',
+    why:'Now the training looks like marathon training: long runs start including chunks at goal marathon pace so your body (and mind) learns what that effort actually feels like for extended periods. Lifting gets shorter and less frequent — the goal is just enough stimulus to keep strength, not enough to add recovery cost that eats into running quality.' },
+  { name:'Peak', weeks:'Weeks 38-47', desc:'Highest mileage, longest runs 30-34km. Lifting minimal (1x/wk).',
+    why:'This is the biggest training load you\'ll carry all year — longest runs, highest weekly volume, most marathon-pace work. Lifting drops to a token session, purely to avoid losing strength entirely. Everything is in service of one thing: making 30km+ at marathon effort feel manageable before taper.' },
+  { name:'Taper', weeks:'Weeks 48-51', desc:'Volume drops sharply, intensity brief. Recovery + carb focus.',
+    why:'Fitness doesn\'t come from the last few weeks of training — it comes from recovering and absorbing the months before. Volume drops hard while a little intensity is kept so your legs stay sharp. This is deliberately uncomfortable to trust, but skipping the taper is one of the most common ways runners show up to race day flat.' },
+  { name:'Race Week', weeks:'Weeks 52+', desc:'Shakeouts only, carb-load, race day!',
+    why:'Just enough movement to stay loose, nothing that creates fatigue. Carb intake increases to top off glycogen stores. Everything from here is about arriving on the start line rested, fuelled, and uninjured — not about getting fitter.' },
+];
 // Program weeks are anchored to real Monday-Sunday calendar weeks, derived purely
 // from the race date + the device's current clock (no stored "start date"), so
 // day-of-week labels are always correct and stay consistent across devices.
@@ -363,6 +408,23 @@ function saveSettings(){
   };
   save(SETTINGS);
   render();
+}
+
+/* ---------- Collapsible cards ---------- */
+function toggleCard(id){
+  const body = document.getElementById(id+'Body');
+  const chevron = document.getElementById(id+'Chevron');
+  const collapsed = body.classList.toggle('collapsed');
+  chevron.classList.toggle('collapsed', collapsed);
+  localStorage.setItem('mt_collapse_'+id, collapsed ? '1' : '0');
+}
+function applyCollapseState(){
+  ['setup','strength'].forEach(id=>{
+    if(localStorage.getItem('mt_collapse_'+id)==='1'){
+      document.getElementById(id+'Body').classList.add('collapsed');
+      document.getElementById(id+'Chevron').classList.add('collapsed');
+    }
+  });
 }
 
 /* ---------- Pace / phase math ---------- */
@@ -549,25 +611,53 @@ function render(){
     `Today (${todayItem.title}) burns ≈${todayBurn} kcal on top of your base rate — already folded into the target above.`;
 
   // roadmap
-  const phases = [
-    ['Foundation','Weeks 1-13','Build lifting strength further + aerobic base. 3 lifts, 4 runs/week.'],
-    ['Base Building','Weeks 14-25','Mileage climbs 30-50km/wk. Lifting drops to maintenance (3x/wk).'],
-    ['Marathon-Specific Build','Weeks 26-37','Long runs 20-28km with MP segments. Lifting 2x/wk, brief.'],
-    ['Peak','Weeks 38-47','Highest mileage, longest runs 30-34km. Lifting minimal (1x/wk).'],
-    ['Taper','Weeks 48-51','Volume drops sharply, intensity brief. Recovery + carb focus.'],
-    ['Race Week','Weeks 52+','Shakeouts only, carb-load, race day!'],
-  ];
-  document.getElementById('roadmap').innerHTML = phases.map(p=>{
-    const done = p[0]!==phase && phases.findIndex(x=>x[0]===phase) > phases.findIndex(x=>x[0]===p[0]);
-    const active = p[0]===phase;
+  document.getElementById('roadmap').innerHTML = PHASES.map(p=>{
+    const done = p.name!==phase && PHASES.findIndex(x=>x.name===phase) > PHASES.findIndex(x=>x.name===p.name);
+    const active = p.name===phase;
     return `<div class="phase-block ${done?'done':''}" style="border-left-color:${active?'var(--accent)':'var(--border)'}">
-      <div class="pname">${p[0]} ${active?'← you are here':''}</div>
-      <div class="pweeks">${p[1]}</div>
-      <div class="pdesc">${p[2]}</div>
+      <div class="pname">${p.name} ${active?'← you are here':''}</div>
+      <div class="pweeks">${p.weeks}</div>
+      <div class="pdesc">${p.desc}</div>
     </div>`;
   }).join('');
 
+  renderProgramGuide(phase);
   renderLogs();
+}
+
+function renderProgramGuide(currentPhase){
+  const el = document.getElementById('programGuide');
+  if(!el) return;
+  const intro = `
+    <p class="guide-intro">
+      This plan runs strength and marathon training side by side, but not at a constant intensity the whole way —
+      it's built in blocks so each phase does one job well instead of trying to do everything at once.
+      Early on, with a full year on the clock, the priority is building real strength (5x5 progression) and an aerobic base.
+      As race day gets closer, running volume and marathon-specific work take over and lifting deliberately shrinks to
+      "maintain, don't add fatigue." The last few weeks trade fitness gains for freshness, because a rested body on race
+      day beats a slightly fitter but fatigued one. Your paces sharpen automatically as your 10K time improves — see the
+      time-trial guide below for when to retest.
+    </p>`;
+  const phaseBlocks = PHASES.map(p=>{
+    const active = p.name===currentPhase;
+    return `<div class="guide-phase" style="border-left-color:${active?'var(--accent)':'var(--border)'}">
+      <div class="gname">${p.name}${active?' — you are here':''}</div>
+      <div class="gweeks">${p.weeks}</div>
+      <div class="gwhy">${p.why}</div>
+    </div>`;
+  }).join('');
+  const timeTrial = `
+    <div class="guide-tt">
+      <div class="gtitle">🏁 When to run a 10K time trial</div>
+      <ul>
+        <li><b>Foundation &amp; Base Building (roughly weeks 1-25):</b> retest every ~6 weeks. This is when your fitness moves fastest, so it's worth updating often.</li>
+        <li><b>Marathon-Specific Build (weeks 26-37):</b> one more retest around week 30 is plenty.</li>
+        <li><b>Peak (weeks 38-47):</b> stop doing all-out 10K efforts. Your marathon-pace runs and long runs are now better indicators of fitness, and a maximal effort here just adds fatigue on top of your biggest training load.</li>
+        <li><b>Taper &amp; Race Week:</b> no time trials — freshness only.</li>
+        <li>After every retest, update "Best recent 10K pace" in Setup above and hit Save &amp; Recalculate — that's what actually shifts your training paces.</li>
+      </ul>
+    </div>`;
+  el.innerHTML = intro + phaseBlocks + timeTrial;
 }
 
 function renderWeek(weekIdx, tw){
@@ -647,6 +737,7 @@ function pasteData(){
 /* ---------- Init ---------- */
 populateSelects();
 document.getElementById('logDate').valueAsDate = new Date();
+applyCollapseState();
 render();
 </script>
 </body>
