@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Marathon + Lift Tracker</title>
+<!-- iPhone "Add to Home Screen" support: opens full-screen, no Safari chrome -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Marathon Tracker">
+<meta name="theme-color" content="#0f1115">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%234f8cff'/%3E%3Ctext x='50' y='66' font-size='55' text-anchor='middle'%3E%F0%9F%8F%83%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --card2:#1e222b; --border:#2a2f3a;
+    --text:#eef1f6; --muted:#9aa4b2; --accent:#4f8cff; --run:#4f8cff;
+    --lift:#ff8a4f; --rest:#39c98d; --walk:#c9a84f; --danger:#ff5c5c;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:linear-gradient(180deg,#0b0d11,#12151c 400px,#0f1115);
+    color:var(--text); padding:24px 16px 80px; min-height:100vh;
+  }
+  .wrap{max-width:980px;margin:0 auto;}
+  h1{font-size:1.6rem;margin:0 0 4px;}
+  .subtitle{color:var(--muted);margin:0 0 24px;font-size:.95rem;}
+  .grid{display:grid;gap:16px;}
+  .grid-2{grid-template-columns:1fr 1fr;}
+  .grid-3{grid-template-columns:repeat(3,1fr);}
+  @media (max-width:720px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+  .card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .card h2{margin:0 0 12px;font-size:1.05rem;display:flex;align-items:center;gap:8px;}
+  .card h2 .tag{font-size:.65rem;font-weight:600;background:var(--card2);color:var(--muted);
+    padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;}
+  label{display:block;font-size:.78rem;color:var(--muted);margin:10px 0 4px;}
+  select, input[type=number], input[type=date], input[type=text]{
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    padding:9px 10px; border-radius:8px; font-size:.9rem; appearance:auto;
+  }
+  select:focus, input:focus{outline:1px solid var(--accent);}
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+  .btn{
+    background:var(--accent); color:#fff; border:none; padding:10px 16px; border-radius:8px;
+    font-size:.85rem; font-weight:600; cursor:pointer; margin-top:14px;
+  }
+  .btn.secondary{background:var(--card2); color:var(--text); border:1px solid var(--border);}
+  .btn:hover{filter:brightness(1.1);}
+  .hero{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;
+    background:linear-gradient(135deg,#1a2440,#171a21 60%); border:1px solid var(--border);
+    border-radius:var(--radius); padding:22px 24px; margin-bottom:18px;
+  }
+  .hero .stat{text-align:center;}
+  .hero .stat .num{font-size:1.7rem;font-weight:700;}
+  .hero .stat .lbl{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+  .phase-pill{
+    display:inline-block; padding:5px 14px; border-radius:20px; font-size:.75rem; font-weight:700;
+    text-transform:uppercase; letter-spacing:.05em; background:var(--accent); color:#fff;
+  }
+  .bar-outer{background:var(--card2); border-radius:8px; height:8px; overflow:hidden; margin-top:8px;}
+  .bar-inner{background:var(--accent); height:100%; border-radius:8px;}
+  .days{display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-top:6px;}
+  @media (max-width:900px){.days{grid-template-columns:repeat(2,1fr);}}
+  .day-card{
+    background:var(--card2); border:1px solid var(--border); border-radius:10px; padding:12px;
+    min-height:150px; display:flex; flex-direction:column; gap:6px; position:relative;
+  }
+  .day-card.today{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent);}
+  .day-card .dname{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+  .day-card .ddate{font-size:.68rem; color:var(--muted); margin-bottom:2px;}
+  .pill{
+    align-self:flex-start; font-size:.62rem; font-weight:700; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; letter-spacing:.03em;
+  }
+  .pill.run{background:rgba(79,140,255,.18); color:var(--run);}
+  .pill.lift{background:rgba(255,138,79,.18); color:var(--lift);}
+  .pill.rest{background:rgba(57,201,141,.18); color:var(--rest);}
+  .pill.walk{background:rgba(201,168,79,.18); color:var(--walk);}
+  .day-card .title{font-size:.85rem; font-weight:600; line-height:1.25;}
+  .day-card .detail{font-size:.74rem; color:var(--muted); line-height:1.35;}
+  .day-card .kcal{font-size:.68rem; color:var(--muted); margin-top:auto; padding-top:4px; border-top:1px dashed var(--border);}
+  .checkbox-row{display:flex; align-items:center; gap:6px; margin-top:4px;}
+  .checkbox-row input{width:auto;}
+  .checkbox-row span{font-size:.68rem; color:var(--muted);}
+  table{width:100%; border-collapse:collapse; font-size:.82rem;}
+  th,td{text-align:left; padding:7px 8px; border-bottom:1px solid var(--border);}
+  th{color:var(--muted); font-weight:600; font-size:.72rem; text-transform:uppercase;}
+  .macro-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:10px;}
+  @media (max-width:600px){.macro-grid{grid-template-columns:repeat(2,1fr);}}
+  .macro{background:var(--card2); border-radius:10px; padding:12px; text-align:center;}
+  .macro .v{font-size:1.25rem; font-weight:700;}
+  .macro .k{font-size:.68rem; color:var(--muted); text-transform:uppercase;}
+  .phase-block{border-left:3px solid var(--accent); padding:8px 0 8px 12px; margin-bottom:10px;}
+  .phase-block.done{opacity:.4;}
+  .phase-block .pname{font-weight:700; font-size:.9rem;}
+  .phase-block .pweeks{font-size:.72rem; color:var(--muted);}
+  .phase-block .pdesc{font-size:.78rem; color:var(--muted); margin-top:2px;}
+  .footer-note{color:var(--muted); font-size:.72rem; margin-top:28px; line-height:1.5; text-align:center;}
+  .log-form{display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:8px; align-items:end;}
+  @media (max-width:700px){.log-form{grid-template-columns:1fr 1fr;}}
+  .empty{color:var(--muted); font-size:.82rem; font-style:italic;}
+  .del{background:none;border:none;color:var(--danger);cursor:pointer;font-size:.75rem;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏃 Marathon + Lift Tracker</h1>
+  <p class="subtitle">Home-gym strength training + marathon build, from today to race day.</p>
+
+  <div class="hero" id="hero"></div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <h2>⚙️ Your Setup <span class="tag">edit anytime</span></h2>
+      <div class="row">
+        <div>
+          <label>Sex (for calorie calc)</label>
+          <select id="sex">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div>
+          <label>Age</label>
+          <select id="age"></select>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Bodyweight (kg)</label>
+          <input type="number" id="weight" step="0.1">
+        </div>
+        <div>
+          <label>Height (cm)</label>
+          <input type="number" id="height" step="1">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Best recent 10K pace (min:sec / km)</label>
+          <select id="tenkpace"></select>
+        </div>
+        <div>
+          <label>Race day</label>
+          <input type="date" id="racedate">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Marathon goal</label>
+          <select id="goal">
+            <option value="345">Sub-3:45 (5:20/km) — ambitious</option>
+            <option value="400" selected>Sub-4:00 (5:41/km) — recommended</option>
+            <option value="415">Sub-4:15 (5:53/km)</option>
+            <option value="430">Sub-4:30 (6:24/km) — conservative</option>
+            <option value="finish">Just finish strong (no time goal)</option>
+          </select>
+        </div>
+        <div>
+          <label>Training days / week</label>
+          <select id="freq">
+            <option value="7" selected>7 — every day (hard/easy mix)</option>
+            <option value="6">6 — one full rest day</option>
+            <option value="5">5 — two rest days</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" onclick="saveSettings()">Save & Recalculate</button>
+    </div>
+
+    <div class="card">
+      <h2>💪 Current Strength <span class="tag">working weights, 5x5</span></h2>
+      <div class="row">
+        <div>
+          <label>Back Squat (kg)</label>
+          <input type="number" id="squat" step="2.5">
+        </div>
+        <div>
+          <label>Bench Press (kg)</label>
+          <input type="number" id="bench" step="2.5">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Deadlift (kg)</label>
+          <input type="number" id="deadlift" step="2.5">
+        </div>
+        <div>
+          <label>Overhead Press (kg)</label>
+          <input type="number" id="ohp" step="2.5">
+        </div>
+      </div>
+      <label>Calorie goal</label>
+      <select id="calgoal">
+        <option value="loss">Fat loss while training</option>
+        <option value="maintain">Maintain weight</option>
+        <option value="recomp" selected>Body recomposition (recommended)</option>
+      </select>
+      <label>Equipment on file</label>
+      <div class="detail" style="color:var(--muted);font-size:.8rem;line-height:1.5;">
+        Squat rack + bench, pull-up bar, Olympic bar with 160kg plates, single-cable stack (high & low pulley).
+        All sessions below are built only from this equipment.
+      </div>
+      <button class="btn secondary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>📅 Training Week <span class="tag" id="weekTag">this week</span></h2>
+    <label>Browse a different week</label>
+    <select id="weekPicker" style="max-width:320px;"></select>
+    <div class="days" id="daysGrid"></div>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:16px;">
+    <div class="card">
+      <h2>🔥 Today's Calorie & Macro Target</h2>
+      <div class="macro-grid" id="macroGrid"></div>
+      <p class="detail" style="margin-top:10px;" id="macroNote"></p>
+    </div>
+    <div class="card">
+      <h2>🗺️ Program Roadmap</h2>
+      <div id="roadmap"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>📈 Progress Log</h2>
+    <div class="log-form">
+      <div>
+        <label>Date</label>
+        <input type="date" id="logDate">
+      </div>
+      <div>
+        <label>Type</label>
+        <select id="logType">
+          <option>10K time trial</option>
+          <option>Long run</option>
+          <option>Squat 5x5</option>
+          <option>Bench 5x5</option>
+          <option>Deadlift</option>
+          <option>Bodyweight</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label>Value</label>
+        <input type="text" id="logValue" placeholder="e.g. 42:30 or 122.5kg">
+      </div>
+      <div>
+        <label>Notes</label>
+        <input type="text" id="logNotes" placeholder="optional">
+      </div>
+      <button class="btn" style="margin-top:0;height:38px;" onclick="addLog()">Add</button>
+    </div>
+    <table style="margin-top:14px;">
+      <thead><tr><th>Date</th><th>Type</th><th>Value</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="logBody"></tbody>
+    </table>
+    <p class="empty" id="logEmpty">No entries yet — log your 10K retests and lift PRs here to track progress.</p>
+    <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:12px;">
+      <label style="margin-top:0;">Sync between devices (e.g. desktop ↔ iPhone)</label>
+      <p class="detail" style="margin-bottom:8px;">Data only saves to the browser you're using. Use Copy/Paste to move your settings + log to another device.</p>
+      <div class="row">
+        <button class="btn secondary" style="margin-top:0;" onclick="copyData()">📋 Copy my data</button>
+        <button class="btn secondary" style="margin-top:0;" onclick="pasteData()">📥 Paste data here</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Built for a home gym: squat rack, bench, pull-up bar, Olympic bar + 160kg plates, and a single low/high cable stack.
+    Paces and calories are estimates that sharpen as your race day approaches and as you update your numbers — not medical advice.
+    Listen to your body, back off if something hurts, and consider a coach or physio for personalised guidance.
+    Data is saved only in this browser (localStorage).
+  </p>
+</div>
+
+<script>
+/* ---------- Defaults ---------- */
+const DEFAULTS = {
+  sex:'male', age:29, weight:84, height:169,
+  tenkpace:390, // seconds per km (6:30)
+  racedate:'2027-07-11',
+  goal:'400', freq:'7',
+  squat:120, bench:100, deadlift:140, ohp:60,
+  calgoal:'recomp'
+};
+// Program weeks are anchored to real Monday-Sunday calendar weeks, derived purely
+// from the race date + the device's current clock (no stored "start date"), so
+// day-of-week labels are always correct and stay consistent across devices.
+function mondayOf(d){
+  const x = new Date(d); x.setHours(0,0,0,0);
+  const dow = (x.getDay()+6)%7; // Mon=0..Sun=6
+  x.setDate(x.getDate()-dow);
+  return x;
+}
+function getProgramStart(){
+  const raceMonday = mondayOf(new Date(SETTINGS.racedate));
+  const start = new Date(raceMonday);
+  start.setDate(start.getDate()-52*7); // fixed 52-week runway back from race week
+  return start;
+}
+
+function load(){
+  const s = JSON.parse(localStorage.getItem('mt_settings')||'null') || {...DEFAULTS};
+  return {...DEFAULTS, ...s};
+}
+function save(s){ localStorage.setItem('mt_settings', JSON.stringify(s)); }
+let SETTINGS = load();
+let LOGS = JSON.parse(localStorage.getItem('mt_logs')||'[]');
+
+/* ---------- Populate static dropdowns ---------- */
+function populateSelects(){
+  const ageSel = document.getElementById('age');
+  for(let a=16;a<=70;a++){ ageSel.innerHTML += `<option value="${a}">${a}</option>`; }
+  const paceSel = document.getElementById('tenkpace');
+  for(let s=330;s<=540;s+=5){ // 5:30 to 9:00 per km
+    paceSel.innerHTML += `<option value="${s}">${fmtPace(s)} /km (10K in ${fmtMin(s*10)})</option>`;
+  }
+}
+function fmtPace(sec){ const m=Math.floor(sec/60), s=Math.round(sec%60); return `${m}:${String(s).padStart(2,'0')}`; }
+function fmtMin(sec){ const m=Math.floor(sec/60), s=Math.round(sec%60); return `${m}:${String(s).padStart(2,'0')}`; }
+
+function applySettingsToForm(){
+  document.getElementById('sex').value = SETTINGS.sex;
+  document.getElementById('age').value = SETTINGS.age;
+  document.getElementById('weight').value = SETTINGS.weight;
+  document.getElementById('height').value = SETTINGS.height;
+  document.getElementById('tenkpace').value = SETTINGS.tenkpace;
+  document.getElementById('racedate').value = SETTINGS.racedate;
+  document.getElementById('goal').value = SETTINGS.goal;
+  document.getElementById('freq').value = SETTINGS.freq;
+  document.getElementById('squat').value = SETTINGS.squat;
+  document.getElementById('bench').value = SETTINGS.bench;
+  document.getElementById('deadlift').value = SETTINGS.deadlift;
+  document.getElementById('ohp').value = SETTINGS.ohp;
+  document.getElementById('calgoal').value = SETTINGS.calgoal;
+}
+
+function saveSettings(){
+  SETTINGS = {
+    sex: document.getElementById('sex').value,
+    age: +document.getElementById('age').value,
+    weight: +document.getElementById('weight').value,
+    height: +document.getElementById('height').value,
+    tenkpace: +document.getElementById('tenkpace').value,
+    racedate: document.getElementById('racedate').value,
+    goal: document.getElementById('goal').value,
+    freq: document.getElementById('freq').value,
+    squat: +document.getElementById('squat').value,
+    bench: +document.getElementById('bench').value,
+    deadlift: +document.getElementById('deadlift').value,
+    ohp: +document.getElementById('ohp').value,
+    calgoal: document.getElementById('calgoal').value
+  };
+  save(SETTINGS);
+  render();
+}
+
+/* ---------- Pace / phase math ---------- */
+function riegelMarathonPaceSec(tenkPaceSecPerKm){
+  const t1 = tenkPaceSecPerKm*10; // 10k time in seconds
+  const t2 = t1*Math.pow(42.195/10,1.06);
+  return t2/42.195;
+}
+function goalPaceSec(goal, currentFitnessPace){
+  if(goal==='finish') return currentFitnessPace + 60;
+  return {345:320,400:341,415:363,430:384}[goal];
+}
+function totalWeeks(){
+  const start = getProgramStart();
+  const raceMonday = mondayOf(new Date(SETTINGS.racedate));
+  return Math.max(1, Math.round((raceMonday-start)/(7*86400000))+1);
+}
+function weekIndexForDate(d){
+  const start = getProgramStart();
+  return Math.floor((mondayOf(d)-start)/(7*86400000))+1;
+}
+function phaseForWeeksRemaining(wr){
+  if(wr>=41) return 'Foundation';
+  if(wr>=29) return 'Base Building';
+  if(wr>=17) return 'Marathon-Specific Build';
+  if(wr>=7) return 'Peak';
+  if(wr>=3) return 'Taper';
+  return 'Race Week';
+}
+function trainingPacesForWeek(weekIdx){
+  const tw = totalWeeks();
+  const curFit = riegelMarathonPaceSec(SETTINGS.tenkpace);
+  const goal = goalPaceSec(SETTINGS.goal, curFit);
+  const peakWeek = Math.max(1, tw-6); // paces fully sharpen by ~6wk out
+  const f = Math.min(1, weekIdx/peakWeek);
+  const mp = curFit + (goal-curFit)*f;
+  return {
+    mp,
+    easy: mp+75,
+    long: mp+60,
+    tempo: Math.max(mp-15, goal-15),
+    interval: Math.max(mp-60, goal-45)
+  };
+}
+
+/* ---------- Day templates per phase ---------- */
+// order Mon..Sun. Each entry carries the real numbers (km / minutes / intensity)
+// used to compute an actual kcal burn for that specific session — not a formula.
+function phaseTemplate(phase, paces){
+  const P = paces;
+  const RUN='run', LIFT='lift', REST='rest', WALK='walk';
+  const t = (type,title,detail,extra={})=>({type,title,detail,...extra});
+  switch(phase){
+    case 'Foundation': return [
+      t(LIFT,'Lower Body Strength','Back Squat 5x5, Romanian Deadlift 3x8 (bar), Cable Pallof Press 3x12/side, Hanging Knee Raise 3x12',{liftMin:50}),
+      t(RUN,'Easy Run', `6-8km @ ${fmtPace(P.easy)}/km, conversational`,{km:7,intensity:'easy'}),
+      t(LIFT,'Upper Body Strength','Bench Press 5x5, Pull-Ups 4xmax, Cable Row (low pulley) 4x10, Overhead Press 3x8',{liftMin:50}),
+      t(RUN,'Tempo / Speed',`20min continuous tempo OR 6x400m @ current 5K effort, jog recovery (~${fmtPace(P.tempo)}/km)`,{km:6,intensity:'tempo'}),
+      t(LIFT,'Full Body Accessory + Walk','Deadlift 3x5, Cable Tricep Pushdown 3x12, Cable Curl 3x12, Face Pull 3x15 + 30min walk',{liftMin:30,walkMin:30}),
+      t(RUN,'Long Run', `10-12km @ ${fmtPace(P.long)}/km, easy and controlled`,{km:11,intensity:'long'}),
+      t(WALK,'Active Recovery','30-45min easy walk + light stretching / mobility',{walkMin:40}),
+    ];
+    case 'Base Building': return [
+      t(RUN,'Easy Run', `8-10km @ ${fmtPace(P.easy)}/km`,{km:9,intensity:'easy'}),
+      t(LIFT,'Lower Maintenance','Back Squat 3x5 (moderate), Romanian Deadlift 3x8, Pallof Press 3x12/side',{liftMin:35}),
+      t(RUN,'Threshold Run', `25-30min tempo @ ${fmtPace(P.tempo)}/km`,{km:7,intensity:'tempo'}),
+      t(LIFT,'Upper Maintenance','Bench Press 3x5, Pull-Ups 4xmax, Cable Row 3x10, OHP 2x8',{liftMin:35}),
+      t(RUN,'Easy + Strides', `6-8km easy @ ${fmtPace(P.easy)}/km + 4x20sec strides`,{km:7,intensity:'easy'}),
+      t(RUN,'Long Run', `14-18km @ ${fmtPace(P.long)}/km`,{km:16,intensity:'long'}),
+      t(WALK,'Recovery Walk + Core','30-45min walk, hanging leg raise 3x12, cable woodchop 3x10/side',{walkMin:35}),
+    ];
+    case 'Marathon-Specific Build': return [
+      t(RUN,'Easy Recovery', `8km @ ${fmtPace(P.easy)}/km`,{km:8,intensity:'easy'}),
+      t(RUN,'VO2/Speed Intervals', `5x1000m @ ${fmtPace(P.interval)}/km, 2-3min jog rec.`,{km:9,intensity:'interval'}),
+      t(LIFT,'Full Body Short Session','Squat 3x5, Bench 3x5, Pull-Ups 3xmax — keep it brief, stay fresh for running',{liftMin:30}),
+      t(RUN,'Easy + Strides', `8-10km easy + 4x20sec strides`,{km:9,intensity:'easy'}),
+      t(RUN,'Marathon Pace Run', `8-10km w/ middle portion @ ${fmtPace(P.mp)}/km (goal pace)`,{km:9,intensity:'mp'}),
+      t(RUN,'Long Run w/ MP Finish', `20-28km, last 5-8km @ ${fmtPace(P.mp)}/km`,{km:24,intensity:'long'}),
+      t(WALK,'Recovery Walk + Mobility','30-40min walk, light cable face pulls, hip mobility',{walkMin:35}),
+    ];
+    case 'Peak': return [
+      t(RUN,'Easy Run', `8-10km @ ${fmtPace(P.easy)}/km`,{km:9,intensity:'easy'}),
+      t(RUN,'Race-Specific Intervals', `6x800m @ ${fmtPace(P.interval)}/km`,{km:10,intensity:'interval'}),
+      t(LIFT,'Minimal Maintenance','Squat 2x5 light, Bench 2x5 light, Pull-Ups 2xmax — 15min, just keep the stimulus',{liftMin:15}),
+      t(RUN,'Marathon Pace Run', `10-12km @ ${fmtPace(P.mp)}/km`,{km:11,intensity:'mp'}),
+      t(RUN,'Easy Shakeout', `6km easy @ ${fmtPace(P.easy)}/km`,{km:6,intensity:'easy'}),
+      t(RUN,'Peak Long Run', `30-34km, middle miles @ ${fmtPace(P.mp)}/km`,{km:32,intensity:'long'}),
+      t(WALK,'Recovery Walk + Stretch','30min walk + full stretch routine',{walkMin:30}),
+    ];
+    case 'Taper': return [
+      t(RUN,'Easy Short Run', `6-8km @ ${fmtPace(P.easy)}/km`,{km:7,intensity:'easy'}),
+      t(RUN,'Short Sharpening', `4x400m @ ${fmtPace(P.interval)}/km, reduced volume`,{km:5,intensity:'interval'}),
+      t(WALK,'Easy Walk + Mobility','20-30min walk, light stretching',{walkMin:25}),
+      t(RUN,'MP Strides', `20min easy + 5x20sec @ ${fmtPace(P.mp)}/km`,{km:4,intensity:'mp'}),
+      t(REST,'Rest / Easy Walk','Full rest or a very easy 20min walk',{walkMin:15}),
+      t(RUN,'Short Easy w/ Strides', `30-40min easy + 3x20sec strides`,{km:6,intensity:'easy'}),
+      t(REST,'Rest','Legs up, hydrate, carb-focus starts this week',{}),
+    ];
+    case 'Race Week': return [
+      t(RUN,'Easy Shakeout', '20-30min very easy + 3x15sec strides',{km:4,intensity:'easy'}),
+      t(REST,'Rest','Full rest, light stretching only',{}),
+      t(RUN,'Tiny Shakeout', '15-20min very easy jog',{km:2.5,intensity:'easy'}),
+      t(REST,'Rest + Carb Load','Begin increasing carb intake, stay off feet',{}),
+      t(RUN,'Pre-Race Shakeout', '10-15min easy + 2-3 strides, lay out race kit',{km:2,intensity:'easy'}),
+      t(REST,'Rest Day Before','Full rest, carb-load, early night',{}),
+      t(RUN,'🏁 RACE DAY', `Marathon! Goal pace ${fmtPace(P.mp)}/km — fuel every 30-45min`,{km:42.195,intensity:'mp'}),
+    ];
+  }
+}
+
+// Actual kcal burned for a specific day's prescribed session (not a formula shown to the user).
+function sessionKcal(day, weight){
+  const factor = {easy:1.0, long:1.0, tempo:1.05, interval:1.1, mp:1.0}[day.intensity] || 1.0;
+  let kcal = 0;
+  if(day.km) kcal += day.km*weight*factor;
+  if(day.liftMin) kcal += day.liftMin*7.5;
+  if(day.walkMin) kcal += day.walkMin*4.5;
+  return Math.round(kcal);
+}
+
+/* ---------- Rendering ---------- */
+function calorieTarget(dayType, sessionBurn){
+  const bmr = SETTINGS.sex==='male'
+    ? 10*SETTINGS.weight + 6.25*SETTINGS.height - 5*SETTINGS.age + 5
+    : 10*SETTINGS.weight + 6.25*SETTINGS.height - 5*SETTINGS.age - 161;
+  const base = bmr*1.3;
+  const tdee = base + (sessionBurn||0);
+  let target = tdee;
+  if(SETTINGS.calgoal==='loss') target = tdee-400;
+  else if(SETTINGS.calgoal==='recomp') target = (dayType==='rest'||dayType==='walk') ? tdee-300 : tdee;
+  target = Math.max(target, bmr*1.1);
+  const protein = SETTINGS.weight*2.0;
+  const fat = SETTINGS.weight*0.8;
+  const carbs = Math.max(0,(target - protein*4 - fat*9)/4);
+  return {kcal:Math.round(target), protein:Math.round(protein), fat:Math.round(fat), carbs:Math.round(carbs)};
+}
+
+function render(){
+  applySettingsToForm();
+  const tw = totalWeeks();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const curWeekIdx = Math.min(tw, Math.max(1, weekIndexForDate(today)));
+  const race = new Date(SETTINGS.racedate);
+  const daysToRace = Math.max(0, Math.round((race-today)/86400000));
+  const weeksRemaining = Math.max(0, Math.ceil((race-today)/(7*86400000)));
+  const phase = phaseForWeeksRemaining(weeksRemaining);
+  const pct = Math.min(100, Math.round(((tw-weeksRemaining)/tw)*100));
+
+  document.getElementById('hero').innerHTML = `
+    <div class="stat"><div class="num">${daysToRace}</div><div class="lbl">Days to Race</div></div>
+    <div class="stat"><div class="num">Wk ${curWeekIdx}/${tw}</div><div class="lbl">Program Week</div></div>
+    <div class="stat"><div class="phase-pill">${phase}</div><div class="lbl" style="margin-top:6px;">Current Phase</div></div>
+    <div style="flex:1;min-width:180px;">
+      <div class="lbl">Progress to Race Day</div>
+      <div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div>
+    </div>
+  `;
+
+  // week picker
+  const wp = document.getElementById('weekPicker');
+  if(wp.options.length !== tw){
+    wp.innerHTML='';
+    for(let w=1; w<=tw; w++){
+      wp.innerHTML += `<option value="${w}">Week ${w}${w===curWeekIdx?' (this week)':''}</option>`;
+    }
+  }
+  wp.value = wp.dataset.userPicked ? wp.value : curWeekIdx;
+  wp.onchange = ()=>{ wp.dataset.userPicked='1'; renderWeek(+wp.value, tw); };
+  renderWeek(+wp.value || curWeekIdx, tw);
+
+  // calorie card for today
+  const todayIdx = (today.getDay()+6)%7; // Mon=0
+  const todaysPhaseTemplate = phaseTemplate(phase, trainingPacesForWeek(curWeekIdx));
+  const todayItem = todaysPhaseTemplate[todayIdx];
+  const todayBurn = sessionKcal(todayItem, SETTINGS.weight);
+  const cal = calorieTarget(todayItem.type, todayBurn);
+  document.getElementById('macroGrid').innerHTML = `
+    <div class="macro"><div class="v">${cal.kcal}</div><div class="k">kcal target</div></div>
+    <div class="macro"><div class="v">${cal.protein}g</div><div class="k">protein</div></div>
+    <div class="macro"><div class="v">${cal.carbs}g</div><div class="k">carbs</div></div>
+    <div class="macro"><div class="v">${cal.fat}g</div><div class="k">fat</div></div>
+  `;
+  document.getElementById('macroNote').textContent =
+    `Today (${todayItem.title}) burns ≈${todayBurn} kcal on top of your base rate — already folded into the target above.`;
+
+  // roadmap
+  const phases = [
+    ['Foundation','Weeks 1-13','Build lifting strength further + aerobic base. 3 lifts, 4 runs/week.'],
+    ['Base Building','Weeks 14-25','Mileage climbs 30-50km/wk. Lifting drops to maintenance (3x/wk).'],
+    ['Marathon-Specific Build','Weeks 26-37','Long runs 20-28km with MP segments. Lifting 2x/wk, brief.'],
+    ['Peak','Weeks 38-47','Highest mileage, longest runs 30-34km. Lifting minimal (1x/wk).'],
+    ['Taper','Weeks 48-51','Volume drops sharply, intensity brief. Recovery + carb focus.'],
+    ['Race Week','Weeks 52+','Shakeouts only, carb-load, race day!'],
+  ];
+  document.getElementById('roadmap').innerHTML = phases.map(p=>{
+    const done = p[0]!==phase && phases.findIndex(x=>x[0]===phase) > phases.findIndex(x=>x[0]===p[0]);
+    const active = p[0]===phase;
+    return `<div class="phase-block ${done?'done':''}" style="border-left-color:${active?'var(--accent)':'var(--border)'}">
+      <div class="pname">${p[0]} ${active?'← you are here':''}</div>
+      <div class="pweeks">${p[1]}</div>
+      <div class="pdesc">${p[2]}</div>
+    </div>`;
+  }).join('');
+
+  renderLogs();
+}
+
+function renderWeek(weekIdx, tw){
+  weekIdx = Math.min(tw, Math.max(1, weekIdx));
+  const weekStart = new Date(getProgramStart().getTime() + (weekIdx-1)*7*86400000);
+  const weeksRemaining = Math.max(0, tw-weekIdx+1);
+  const phase = phaseForWeeksRemaining(weeksRemaining);
+  const paces = trainingPacesForWeek(weekIdx);
+  const tmpl = phaseTemplate(phase, paces);
+  document.getElementById('weekTag').textContent = `${phase} · Week ${weekIdx}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  document.getElementById('daysGrid').innerHTML = tmpl.map((d,i)=>{
+    const date = new Date(weekStart.getTime()+i*86400000);
+    const isToday = date.getTime()===today.getTime();
+    const burn = sessionKcal(d, SETTINGS.weight);
+    return `<div class="day-card ${isToday?'today':''}">
+      <div class="dname">${dayNames[i]}${isToday?' · today':''}</div>
+      <div class="ddate">${date.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</div>
+      <span class="pill ${d.type}">${d.type}</span>
+      <div class="title">${d.title}</div>
+      <div class="detail">${d.detail}</div>
+      <div class="kcal">🔥 ≈${burn} kcal burned this session</div>
+    </div>`;
+  }).join('');
+}
+
+function addLog(){
+  const date = document.getElementById('logDate').value;
+  const type = document.getElementById('logType').value;
+  const value = document.getElementById('logValue').value.trim();
+  const notes = document.getElementById('logNotes').value.trim();
+  if(!date || !value) return;
+  LOGS.unshift({date,type,value,notes});
+  localStorage.setItem('mt_logs', JSON.stringify(LOGS));
+  document.getElementById('logValue').value='';
+  document.getElementById('logNotes').value='';
+  renderLogs();
+}
+function deleteLog(i){
+  LOGS.splice(i,1);
+  localStorage.setItem('mt_logs', JSON.stringify(LOGS));
+  renderLogs();
+}
+function renderLogs(){
+  const body = document.getElementById('logBody');
+  const empty = document.getElementById('logEmpty');
+  if(LOGS.length===0){ body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = LOGS.map((l,i)=>`<tr>
+    <td>${l.date}</td><td>${l.type}</td><td>${l.value}</td><td>${l.notes||''}</td>
+    <td><button class="del" onclick="deleteLog(${i})">remove</button></td>
+  </tr>`).join('');
+}
+
+function copyData(){
+  const payload = JSON.stringify({settings:SETTINGS, logs:LOGS});
+  const done = ()=>alert('Copied! Open this page on your other device, tap "Paste data here", and paste it in.');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(payload).then(done).catch(()=>prompt('Copy this text:', payload));
+  } else {
+    prompt('Copy this text:', payload);
+  }
+}
+function pasteData(){
+  const text = prompt('Paste your data (from "Copy my data" on the other device):');
+  if(!text) return;
+  try{
+    const parsed = JSON.parse(text);
+    if(parsed.settings){ SETTINGS = {...DEFAULTS, ...parsed.settings}; save(SETTINGS); }
+    if(parsed.logs){ LOGS = parsed.logs; localStorage.setItem('mt_logs', JSON.stringify(LOGS)); }
+    render();
+    alert('Data loaded!');
+  } catch(e){ alert('That didn\'t look like valid data — copy it again from the other device.'); }
+}
+
+/* ---------- Init ---------- */
+populateSelects();
+document.getElementById('logDate').valueAsDate = new Date();
+render();
+</script>
+</body>
+</html>
